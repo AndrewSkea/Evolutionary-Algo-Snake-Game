@@ -429,7 +429,7 @@ def main(rseed=300):
     # Start a new evolution
     population = toolbox.population(n=200)
     hof = tools.HallOfFame(maxsize=1)
-    pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.25, 120,
+    pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.1, 120,
                                    stats=mstats, halloffame=hof,
                                    verbose=True)
     smoothing_factor = 20
