@@ -52,8 +52,6 @@ class SnakePlayer(list):
         self.score = 0
         self.ahead = []
         self.food = []
-        self.walls = self.get_walls()
-        self.objects = self.walls + self.body[1:]
 
     def _reset(self):
         self.direction = S_RIGHT
@@ -62,8 +60,6 @@ class SnakePlayer(list):
         self.score = 0
         self.ahead = []
         self.food = []
-        self.walls = self.get_walls()
-        self.objects = self.walls + self.body[1:]
 
     def get_walls(self):
         return ([[0, x] for x in list(range(XSIZE))] +
@@ -102,6 +98,7 @@ class SnakePlayer(list):
             self.hit = True
         return(self.hit)
 
+    # Helper functions
     def get_up(self, x=1):
         return [max(self.body[0][0]-x, 0), self.body[0][1]]
 
@@ -114,52 +111,65 @@ class SnakePlayer(list):
     def get_right(self, x=1):
         return [self.body[0][0], min(self.body[0][1]+x, XSIZE)]
 
-    # Sense wall ahead
-    def sense_object_ahead(self):
-        self.getAheadLocation()
-        return (self.ahead[0] == 0 or self.ahead[0] == (YSIZE-1) or
-               self.ahead[1] == 0 or self.ahead[1] == (XSIZE-1) or
-               self.ahead in self.body)
+    def check_for_object(self, coord):
+        return checkWall(coord) or coord in self.body[1:]
 
-    def if_object_ahead(self, out1, out2):
-        return partial(if_then_else, self.sense_object_ahead, out1, out2)
+    ##########
+    # Sense if object is close
+    def sense_if_object_is_to_right(self):
+        return any([self.check_for_object(self.get_right(x)) for x in list(range(1, 2))])
 
-    # Sense food ahead
-    def sense_food_ahead(self):
-        self.getAheadLocation()
-        return self.ahead in self.food
+    def if_object_is_to_right(self, out1, out2):
+        return partial(if_then_else, self.sense_if_object_is_to_right, out1, out2)
 
-    def if_food_ahead(self, out1, out2):
-        return partial(if_then_else, self.sense_food_ahead, out1, out2)
+    def sense_if_object_is_to_left(self):
+        return any([self.check_for_object(self.get_left(x)) for x in list(range(1, 2))])
 
-    # Sense if food is to the left
+    def if_object_is_to_left(self, out1, out2):
+        return partial(if_then_else, self.sense_if_object_is_to_left, out1, out2)
+
+    def sense_if_object_is_up(self):
+        return any([self.check_for_object(self.get_up(x)) for x in list(range(1, 2))])
+
+    def if_object_is_up(self, out1, out2):
+        return partial(if_then_else, self.sense_if_object_is_up, out1, out2)
+
+    def sense_if_object_is_down(self):
+        return any([self.check_for_object(self.get_down(x)) for x in list(range(1, 2))])
+
+    def if_object_is_down(self, out1, out2):
+        return partial(if_then_else, self.sense_if_object_is_down, out1, out2)
+    ##########
+
+    ##########
+    # Sense where food in respect to head
     def sense_food_left(self):
         return self.food[0][1] < self.body[0][1]
 
     def if_food_left(self, out1, out2):
         return partial(if_then_else, self.sense_food_left, out1, out2)
 
-    # Sense if food is to the right
     def sense_food_right(self):
         return self.food[0][1] > self.body[0][1]
 
     def if_food_right(self, out1, out2):
         return partial(if_then_else, self.sense_food_right, out1, out2)
 
-    # Sense if food is to the down
     def sense_food_down(self):
         return self.food[0][0] > self.body[0][0]
 
     def if_food_down(self, out1, out2):
         return partial(if_then_else, self.sense_food_down, out1, out2)
 
-    # Sense if food is to the up
     def sense_food_up(self):
         return self.food[0][0] < self.body[0][0]
 
     def if_food_up(self, out1, out2):
         return partial(if_then_else, self.sense_food_up, out1, out2)
+    ##########
 
+
+    ##########
     # Sense objects in all directions
     def sense_object_up(self):
         coord = self.get_up()
@@ -189,6 +199,10 @@ class SnakePlayer(list):
     def if_object_right(self, out1, out2):
         return partial(if_then_else, self.sense_object_right, out1, out2)
 
+    ##########
+
+
+    ##########
     # Sense corners
     def if_in_corner_left_up(self, out1, out2):
         return partial(if_then_else, self.sense_object_left and self.sense_object_up, out1, out2)
@@ -201,20 +215,26 @@ class SnakePlayer(list):
 
     def if_in_corner_right_down(self, out1, out2):
         return partial(if_then_else, self.sense_object_right and self.sense_object_down, out1, out2)
+    ##########
 
+
+    ##########
     # Sense Size
-    def sense_body_longer_than_2X(self):
-        return len(self.body) > XSIZE*2
+    def sense_body_longer_than_X_by(self, multiplier=2):
+        return len(self.body) > XSIZE*multiplier
 
     def if_body_longer_than_2X(self, out1, out2):
-        return partial(if_then_else, self.sense_body_longer_than_2X, out1, out2)
+        return partial(if_then_else, self.sense_body_longer_than_X_by, out1, out2)
  
-    def sense_body_longer_than_2Y(self):
-        return len(self.body) > YSIZE*2
+    def sense_body_longer_than_Y_by(self, multiplier=2):
+        return len(self.body) > YSIZE*multiplier
 
     def if_body_longer_than_2Y(self, out1, out2):
-        return partial(if_then_else, self.sense_body_longer_than_2Y, out1, out2)
+        return partial(if_then_else, self.sense_body_longer_than_Y_by, out1, out2)
+    ##########
 
+
+    ##########
     # Sense direct food direction
     def sense_food_on_x_axis_up(self):
         return self.food[0][1] == self.body[0][1] and self.food[0][0] < self.body[0][0]
@@ -239,31 +259,7 @@ class SnakePlayer(list):
 
     def if_food_on_y_axis_right(self, out1, out2):
         return partial(if_then_else, self.sense_food_on_y_axis_right, out1, out2)
-
-    # Sense if body is close
-    def sense_if_body_is_to_right(self):
-        return any([self.get_right(x) in self.objects for x in list(range(4))])
-
-    def if_body_is_to_right(self, out1, out2):
-        return partial(if_then_else, self.sense_if_body_is_to_right, out1, out2)
-
-    def sense_if_body_is_to_left(self):
-        return any([self.get_left(x) in self.objects for x in list(range(4))])
-
-    def if_body_is_to_left(self, out1, out2):
-        return partial(if_then_else, self.sense_if_body_is_to_left, out1, out2)
-
-    def sense_if_body_is_up(self):
-        return any([self.get_up(x) in self.objects for x in list(range(4))])
-
-    def if_body_is_up(self, out1, out2):
-        return partial(if_then_else, self.sense_if_body_is_up, out1, out2)
-
-    def sense_if_body_is_down(self):
-        return any([self.get_down(x) in self.objects for x in list(range(4))])
-
-    def if_body_is_down(self, out1, out2):
-        return partial(if_then_else, self.sense_if_body_is_down, out1, out2)
+    ##########
 
 
 def checkWall(coord):
@@ -440,18 +436,23 @@ def main(rseed=300):
     # pset.addPrimitive(snake.if_food_ahead, 2)
     # pset.addPrimitive(snake.if_object_ahead, 2)
 
+    pset.addPrimitive(snake.if_object_is_to_right, 2)
+    pset.addPrimitive(snake.if_object_is_to_left, 2)
+    pset.addPrimitive(snake.if_object_is_up, 2)
+    pset.addPrimitive(snake.if_object_is_down, 2)
+
     pset.addPrimitive(snake.if_food_right, 2)
     pset.addPrimitive(snake.if_food_down, 2)
     pset.addPrimitive(snake.if_food_left, 2)
     pset.addPrimitive(snake.if_food_up, 2)
 
-    pset.addPrimitive(snake.if_object_right, 2)
-    pset.addPrimitive(snake.if_object_left, 2)
-    pset.addPrimitive(snake.if_object_up, 2)
-    pset.addPrimitive(snake.if_object_down, 2)
-
     pset.addPrimitive(snake.if_body_longer_than_2X, 2)
     pset.addPrimitive(snake.if_body_longer_than_2Y, 2)
+
+    # pset.addPrimitive(snake.if_object_right, 2)
+    # pset.addPrimitive(snake.if_object_left, 2)
+    # pset.addPrimitive(snake.if_object_up, 2)
+    # pset.addPrimitive(snake.if_object_down, 2)
 
     # pset.addPrimitive(snake.if_in_corner_left_up, 2)
     # pset.addPrimitive(snake.if_in_corner_left_down, 2)
@@ -462,11 +463,6 @@ def main(rseed=300):
     # pset.addPrimitive(snake.if_food_on_x_axis_down, 2)
     # pset.addPrimitive(snake.if_food_on_y_axis_right, 2)
     # pset.addPrimitive(snake.if_food_on_y_axis_left, 2)
-
-    pset.addPrimitive(snake.if_body_is_to_right, 2)
-    pset.addPrimitive(snake.if_body_is_to_left, 2)
-    pset.addPrimitive(snake.if_body_is_up, 2)
-    pset.addPrimitive(snake.if_body_is_down, 2)
 
     pset.addTerminal(snake.changeDirectionDown)
     pset.addTerminal(snake.changeDirectionLeft)
@@ -484,7 +480,7 @@ def main(rseed=300):
     toolbox.register("evaluate", runGameAvg)
     toolbox.register("select", tools.selTournament, tournsize=7)
     toolbox.register("mate", gp.cxOnePoint)
-    toolbox.register("expr_mut", gp.genHalfAndHalf, min_=1, max_=5)
+    toolbox.register("expr_mut", gp.genHalfAndHalf, min_=1, max_=3)
     toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
     toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=50))
     toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=50))
@@ -499,7 +495,7 @@ def main(rseed=300):
     # Start a new evolution
     population = toolbox.population(n=300)
     hof = tools.HallOfFame(maxsize=1)
-    pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150,
+    pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.25, 150,
                                    stats=mstats, halloffame=hof,
                                    verbose=True)
     smoothing_factor = 20
