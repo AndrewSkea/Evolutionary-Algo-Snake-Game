@@ -9,7 +9,7 @@ import numpy
 import csv
 from functools import partial
 # import pygraphviz as pgv
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 from deap import algorithms
 from deap import base
@@ -52,6 +52,8 @@ class SnakePlayer(list):
         self.score = 0
         self.ahead = []
         self.food = []
+        self.walls = self.get_walls()
+        self.objects = self.walls + self.body[1:]
 
     def _reset(self):
         self.direction = S_RIGHT
@@ -60,6 +62,14 @@ class SnakePlayer(list):
         self.score = 0
         self.ahead = []
         self.food = []
+        self.walls = self.get_walls()
+        self.objects = self.walls + self.body[1:]
+
+    def get_walls(self):
+        return ([[0, x] for x in list(range(XSIZE))] +
+                [[y, 0] for y in list(range(YSIZE))] +
+                [[YSIZE, x] for x in list(range(XSIZE))] +
+                [[y, XSIZE] for y in list(range(YSIZE))])
 
     def getAheadLocation(self):
         self.ahead = [self.body[0][0] + (self.direction == S_DOWN and 1) + (self.direction == S_UP and -1),
@@ -92,17 +102,17 @@ class SnakePlayer(list):
             self.hit = True
         return(self.hit)
 
-    def get_up(self):
-        return [self.body[0][0]-1, self.body[0][1]]
+    def get_up(self, x=1):
+        return [max(self.body[0][0]-x, 0), self.body[0][1]]
 
-    def get_down(self):
-        return [self.body[0][0]+1, self.body[0][1]]
+    def get_down(self, x=1):
+        return [min(self.body[0][0]+x, YSIZE), self.body[0][1]]
 
-    def get_left(self):
-        return [self.body[0][0], self.body[0][1]-1]
+    def get_left(self, x=1):
+        return [self.body[0][0], max(self.body[0][1]-x, 0)]
 
-    def get_right(self):
-        return [self.body[0][0], self.body[0][1]+1]
+    def get_right(self, x=1):
+        return [self.body[0][0], min(self.body[0][1]+x, XSIZE)]
 
     # Sense wall ahead
     def sense_object_ahead(self):
@@ -230,6 +240,31 @@ class SnakePlayer(list):
     def if_food_on_y_axis_right(self, out1, out2):
         return partial(if_then_else, self.sense_food_on_y_axis_right, out1, out2)
 
+    # Sense if body is close
+    def sense_if_body_is_to_right(self):
+        return any([self.get_right(x) in self.objects for x in list(range(4))])
+
+    def if_body_is_to_right(self, out1, out2):
+        return partial(if_then_else, self.sense_if_body_is_to_right, out1, out2)
+
+    def sense_if_body_is_to_left(self):
+        return any([self.get_left(x) in self.objects for x in list(range(4))])
+
+    def if_body_is_to_left(self, out1, out2):
+        return partial(if_then_else, self.sense_if_body_is_to_left, out1, out2)
+
+    def sense_if_body_is_up(self):
+        return any([self.get_up(x) in self.objects for x in list(range(4))])
+
+    def if_body_is_up(self, out1, out2):
+        return partial(if_then_else, self.sense_if_body_is_up, out1, out2)
+
+    def sense_if_body_is_down(self):
+        return any([self.get_down(x) in self.objects for x in list(range(4))])
+
+    def if_body_is_down(self, out1, out2):
+        return partial(if_then_else, self.sense_if_body_is_down, out1, out2)
+
 
 def checkWall(coord):
     return (coord[0] == 0
@@ -277,11 +312,11 @@ def displayStrategyRun(individual):
     curses.curs_set(0)
     win.border(0)
     win.nodelay(1)
-    win.timeout(10)
-
+    win.timeout(20)
+    steps = 0
     snake._reset()
     food = placeFood(snake)
-
+    timer_array = []
     for f in food:
         win.addch(f[0], f[1], '@')
 
@@ -296,7 +331,7 @@ def displayStrategyRun(individual):
 
         routine()
         snake.updatePosition()
-
+        steps += 1
         if snake.body[0] in food:
             snake.score += 1
             for f in food:
@@ -304,6 +339,7 @@ def displayStrategyRun(individual):
             food = placeFood(snake)
             for f in food:
                 win.addch(f[0], f[1], '@')
+            timer_array.append(timer)
             timer = 0
         else:
             last = snake.body.pop()
@@ -319,7 +355,7 @@ def displayStrategyRun(individual):
 
     print("Collided: {}".format(collided))
     print("Bounds hit: {}".format(hitBounds))
-    return snake.score,
+    return snake.score, steps, timer_array
 
 
 def runGame(individual):
@@ -329,12 +365,15 @@ def runGame(individual):
     routine = gp.compile(individual, pset)
     snake._reset()
     food = placeFood(snake)
+    timer_array = []
     timer = 0
+    steps = 0
     while not snake.snakeHasCollided() and not timer == XSIZE * YSIZE:
 
         routine()
         snake.updatePosition()
 
+        steps += 1
         if snake.body[0] in food:
             snake.score += 1
             if not (checkFood(snake)):
@@ -343,21 +382,47 @@ def runGame(individual):
                 return (snake.score,)
             else:  # If coords free, then place food
                 food = placeFood(snake)
+                timer_array.append(timer)
                 timer = 0
         else:
             snake.body.pop()
             timer += 1  # timesteps since last eaten
 
+    final_distance_from_food = abs(snake.body[0][0] - food[0][0]) + abs(snake.body[0][1] - food[0][1])
     totalScore += snake.score
-    return totalScore,
+    return totalScore, steps, timer_array, final_distance_from_food
 
 
 def runGameAvg(individual):
     global avg_scores
-    avgs = [runGame(individual)[0] for x in range(4)]
-    avg = sum(avgs)/len(avgs)
-    avg_scores.append(avg)
-    return (avg,)
+    score_avgs = []
+    # steps_avgs = []
+    # timer_avgs = []
+    # fd_dist_avgs = []
+
+    for x in range(3):
+        res = runGame(individual)
+        score_avgs.append(res[0])
+        # steps_avgs.append(res[1])
+        # timer_avgs.append(sum(res[2])/len(res[2]) if len(res[2]) > 0 else 0)
+        # fd_dist_avgs.append(res[3])
+
+    # score_avg = max(score_avgs)
+    score_avg = sum(score_avgs)/len(score_avgs)
+    # steps_avg = sum(steps_avgs)/len(steps_avgs)
+    # timer_avg = max(sum(timer_avgs)/len(timer_avgs), 1)
+    # fd_dist_avg = sum(fd_dist_avgs)/len(fd_dist_avgs)
+    avg_scores.append(score_avg)
+
+    return score_avg,
+    # return score_avg, steps_avg
+    # return score_avg/fd_dist_avg,
+    # return score_avg, 20/timer_avg
+    # return score_avg, steps_avg, timer_avg
+    # return (score_avg/timer_avg,)
+    # return (score_avg*timer_avg,)
+    # return (score_avg/steps_avg,)
+    # return (score_avg*steps_avg,)
 
 
 def main(rseed=300):
@@ -398,6 +463,11 @@ def main(rseed=300):
     # pset.addPrimitive(snake.if_food_on_y_axis_right, 2)
     # pset.addPrimitive(snake.if_food_on_y_axis_left, 2)
 
+    pset.addPrimitive(snake.if_body_is_to_right, 2)
+    pset.addPrimitive(snake.if_body_is_to_left, 2)
+    pset.addPrimitive(snake.if_body_is_up, 2)
+    pset.addPrimitive(snake.if_body_is_down, 2)
+
     pset.addTerminal(snake.changeDirectionDown)
     pset.addTerminal(snake.changeDirectionLeft)
     pset.addTerminal(snake.changeDirectionRight)
@@ -407,17 +477,17 @@ def main(rseed=300):
     creator.create("Individual", gp.PrimitiveTree,
                    fitness=creator.FitnessMax, pset=pset)
     toolbox = base.Toolbox()
-    toolbox.register("expr_init", gp.genHalfAndHalf, pset=pset, min_=1, max_=3)
+    toolbox.register("expr_init", gp.genHalfAndHalf, pset=pset, min_=1, max_=5)
     toolbox.register("individual", tools.initIterate,
                      creator.Individual, toolbox.expr_init)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("evaluate", runGameAvg)
     toolbox.register("select", tools.selTournament, tournsize=7)
     toolbox.register("mate", gp.cxOnePoint)
-    toolbox.register("expr_mut", gp.genHalfAndHalf, min_=1, max_=3)
+    toolbox.register("expr_mut", gp.genHalfAndHalf, min_=1, max_=5)
     toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
-    toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=20))
-    toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=20))
+    toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=50))
+    toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=50))
 
     stats_fit = tools.Statistics(key=lambda ind: ind.fitness.values)
     mstats = tools.MultiStatistics(fitness=stats_fit)
@@ -427,18 +497,18 @@ def main(rseed=300):
     mstats.register("max", numpy.max, axis=0)
 
     # Start a new evolution
-    population = toolbox.population(n=200)
+    population = toolbox.population(n=300)
     hof = tools.HallOfFame(maxsize=1)
-    pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.1, 120,
+    pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150,
                                    stats=mstats, halloffame=hof,
                                    verbose=True)
     smoothing_factor = 20
     avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
-    plt.plot(list(range(len(avg_scores))), avg_scores)
-    plt.show()
+    # plt.plot(list(range(len(avg_scores))), avg_scores)
+    # plt.show()
 
     epr = tools.selBest(hof, 1)[0]
-    # displayStrategyRun(epr)
+    displayStrategyRun(epr)
     best_run_5_times = [runGame(epr)[0] for x in range(5)]
     print("Best from pop, run 5 times: {}".format(best_run_5_times))
     print("Best from pop, avg: {}".format(sum(best_run_5_times)/5))
