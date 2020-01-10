@@ -1,5 +1,5 @@
 import time
-import pickle
+# import pickle
 import os.path
 import copy
 import random
@@ -10,6 +10,8 @@ import numpy
 import csv
 from functools import partial
 import multiprocessing
+# import matplotlib.pyplot as plt
+# import networkx as nx
 # import pygraphviz as pgv
 # import matplotlib.pyplot as plt
 
@@ -513,9 +515,6 @@ def main(rseed=300, use_last_best=False):
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("evaluate", runGameAvg)
 
-    # pool = multiprocessing.Pool()
-    # toolbox.register("map", pool.map)
-
     # toolbox.register("select", tools.selTournament, tournsize=7)
     # toolbox.register("select", tools.selBest)
     # toolbox.register("select", tools.selNSGA2)
@@ -556,11 +555,11 @@ def main(rseed=300, use_last_best=False):
     #             population = population[1:]
 
     hof = tools.HallOfFame(maxsize=2)
-    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
 
-    # pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150,
-    #                                stats=mstats, halloffame=hof,
-    #                                verbose=True)
+    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 275, 0.5, 0.2, 150, stats=mstats, halloffame=hof, verbose=True)
+    # pop, log = algorithms.eaMuCommaLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
+    # pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150, stats=mstats, halloffame=hof, verbose=True)
+    
     smoothing_factor = 20
     avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
     # plt.plot(list(range(len(avg_scores))), avg_scores)
@@ -568,13 +567,25 @@ def main(rseed=300, use_last_best=False):
 
     epr = tools.selBest(hof, 1)[0]
 
-    with open('best_player.pkl', 'wb') as f:
-        f.write(pickle.dumps(epr))
+    # with open('best_player.pkl', 'wb') as f:
+    #     f.write(pickle.dumps(epr))
 
-    displayStrategyRun(epr)
+    # displayStrategyRun(epr)
     best_run_5_times = [runGame(epr)[0] for x in range(5)]
     print("Best from pop, run 5 times: {}".format(best_run_5_times))
     print("Best from pop, avg: {}".format(sum(best_run_5_times)/5))
+
+# Section: Graphing
+    # nodes, edges, labels = gp.graph(epr)
+    # g = nx.Graph()
+    # g.add_nodes_from(nodes)
+    # g.add_edges_from(edges)
+    # pos = nx.nx_agraph.graphviz_layout(g, prog="dot")
+
+    # nx.draw_networkx_nodes(g, pos)
+    # nx.draw_networkx_edges(g, pos)
+    # nx.draw_networkx_labels(g, pos, labels)
+    # plt.show()
 
     # nodes, edges, labels = gp.graph(epr)
     # g = pgv.AGraph(nodeSep=1.0)
@@ -587,5 +598,8 @@ def main(rseed=300, use_last_best=False):
     #     n.attr["label"] = labels[i]
 
     # g.draw("tree.pdf")
+# Section End: Graphing
 
-main(rseed=69, use_last_best=False)
+
+if __name__ == "__main__":
+    main(rseed=69, use_last_best=False)
