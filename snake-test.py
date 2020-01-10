@@ -1,6 +1,5 @@
 import time
 import pickle
-import os.path
 import copy
 import random
 import curses
@@ -9,9 +8,8 @@ import operator
 import numpy
 import csv
 from functools import partial
-import multiprocessing
 # import pygraphviz as pgv
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 from deap import algorithms
 from deap import base
@@ -29,11 +27,14 @@ def progn(*args):
     for arg in args:
         arg()
 
+
 def prog2(out1, out2):
     return partial(progn, out1, out2)
 
+
 def prog3(out1, out2, out3):
     return partial(progn, out1, out2, out3)
+
 
 def if_then_else(condition, out1, out2):
     out1() if condition() else out2()
@@ -59,12 +60,6 @@ class SnakePlayer(list):
         self.score = 0
         self.ahead = []
         self.food = []
-
-    def get_walls(self):
-        return ([[0, x] for x in list(range(XSIZE))] +
-                [[y, 0] for y in list(range(YSIZE))] +
-                [[YSIZE, x] for x in list(range(XSIZE))] +
-                [[y, XSIZE] for y in list(range(YSIZE))])
 
     def getAheadLocation(self):
         self.ahead = [self.body[0][0] + (self.direction == S_DOWN and 1) + (self.direction == S_UP and -1),
@@ -97,80 +92,64 @@ class SnakePlayer(list):
             self.hit = True
         return(self.hit)
 
-    # Helper functions
-    def get_up(self, x=1):
-        return [max(self.body[0][0]-x, 0), self.body[0][1]]
+    def get_up(self):
+        return [self.body[0][0]-1, self.body[0][1]]
 
-    def get_down(self, x=1):
-        return [min(self.body[0][0]+x, YSIZE), self.body[0][1]]
+    def get_down(self):
+        return [self.body[0][0]+1, self.body[0][1]]
 
-    def get_left(self, x=1):
-        return [self.body[0][0], max(self.body[0][1]-x, 0)]
+    def get_left(self):
+        return [self.body[0][0], self.body[0][1]-1]
 
-    def get_right(self, x=1):
-        return [self.body[0][0], min(self.body[0][1]+x, XSIZE)]
+    def get_right(self):
+        return [self.body[0][0], self.body[0][1]+1]
 
-    def check_for_object(self, coord):
-        return checkWall(coord) or coord in self.body
+    # Sense wall ahead
+    def sense_object_ahead(self):
+        self.getAheadLocation()
+        return (self.ahead[0] == 0 or self.ahead[0] == (YSIZE-1) or
+               self.ahead[1] == 0 or self.ahead[1] == (XSIZE-1) or
+               self.ahead in self.body)
 
-    range_ar = list(range(2, 4))
+    def if_object_ahead(self, out1, out2):
+        return partial(if_then_else, self.sense_object_ahead, out1, out2)
 
-    ##########
-    # Sense if object is close
-    def sense_if_object_is_to_right(self):
-        return any([self.check_for_object(self.get_right(x)) for x in self.range_ar])
+    # Sense food ahead
+    def sense_food_ahead(self):
+        self.getAheadLocation()
+        return self.ahead in self.food
 
-    def if_object_is_to_right(self, out1, out2):
-        return partial(if_then_else, self.sense_if_object_is_to_right, out1, out2)
+    def if_food_ahead(self, out1, out2):
+        return partial(if_then_else, self.sense_food_ahead, out1, out2)
 
-    def sense_if_object_is_to_left(self):
-        return any([self.check_for_object(self.get_left(x)) for x in self.range_ar])
-
-    def if_object_is_to_left(self, out1, out2):
-        return partial(if_then_else, self.sense_if_object_is_to_left, out1, out2)
-
-    def sense_if_object_is_up(self):
-        return any([self.check_for_object(self.get_up(x)) for x in self.range_ar])
-
-    def if_object_is_up(self, out1, out2):
-        return partial(if_then_else, self.sense_if_object_is_up, out1, out2)
-
-    def sense_if_object_is_down(self):
-        return any([self.check_for_object(self.get_down(x)) for x in self.range_ar])
-
-    def if_object_is_down(self, out1, out2):
-        return partial(if_then_else, self.sense_if_object_is_down, out1, out2)
-    ##########
-
-    ##########
-    # Sense where food in respect to head
+    # Sense if food is to the left
     def sense_food_left(self):
         return self.food[0][1] < self.body[0][1]
 
     def if_food_left(self, out1, out2):
         return partial(if_then_else, self.sense_food_left, out1, out2)
 
+    # Sense if food is to the right
     def sense_food_right(self):
         return self.food[0][1] > self.body[0][1]
 
     def if_food_right(self, out1, out2):
         return partial(if_then_else, self.sense_food_right, out1, out2)
 
+    # Sense if food is to the down
     def sense_food_down(self):
         return self.food[0][0] > self.body[0][0]
 
     def if_food_down(self, out1, out2):
         return partial(if_then_else, self.sense_food_down, out1, out2)
 
+    # Sense if food is to the up
     def sense_food_up(self):
         return self.food[0][0] < self.body[0][0]
 
     def if_food_up(self, out1, out2):
         return partial(if_then_else, self.sense_food_up, out1, out2)
-    ##########
 
-
-    ##########
     # Sense objects in all directions
     def sense_object_up(self):
         coord = self.get_up()
@@ -200,10 +179,6 @@ class SnakePlayer(list):
     def if_object_right(self, out1, out2):
         return partial(if_then_else, self.sense_object_right, out1, out2)
 
-    ##########
-
-
-    ##########
     # Sense corners
     def if_in_corner_left_up(self, out1, out2):
         return partial(if_then_else, self.sense_object_left and self.sense_object_up, out1, out2)
@@ -216,54 +191,20 @@ class SnakePlayer(list):
 
     def if_in_corner_right_down(self, out1, out2):
         return partial(if_then_else, self.sense_object_right and self.sense_object_down, out1, out2)
-    ##########
 
-
-    ##########
     # Sense Size
-    def sense_body_longer_than_X_by(self, multiplier=2):
-        return len(self.body) >= XSIZE*multiplier
+    def sense_body_longer_than_2X(self):
+        return len(self.body) > XSIZE*2
 
     def if_body_longer_than_2X(self, out1, out2):
-        return partial(if_then_else, self.sense_body_longer_than_X_by, out1, out2)
+        return partial(if_then_else, self.sense_body_longer_than_2X, out1, out2)
  
-    def sense_body_longer_than_Y_by(self, multiplier=2):
-        return len(self.body) >= YSIZE*multiplier
+    def sense_body_longer_than_2Y(self):
+        return len(self.body) > YSIZE*2
 
     def if_body_longer_than_2Y(self, out1, out2):
-        return partial(if_then_else, self.sense_body_longer_than_Y_by, out1, out2)
-    ##########
+        return partial(if_then_else, self.sense_body_longer_than_2Y, out1, out2)
 
-
-    ##########
-    # Sense if more space in one direction
-    def sense_more_space_left(self):
-        return True if self.body[0][1] <= XSIZE/2-1 else False
-
-    def if_more_space_left(self, out1, out2):
-        return partial(if_then_else, self.sense_more_space_left, out1, out2)
-
-    def sense_more_space_up(self):
-        return True if self.body[0][0] <= YSIZE/2-1 else False
-
-    def if_more_space_up(self, out1, out2):
-        return partial(if_then_else, self.sense_more_space_up, out1, out2)
-
-    def sense_more_space_right(self):
-        return True if self.body[0][1] > XSIZE/2-1 else False
-
-    def if_more_space_right(self, out1, out2):
-        return partial(if_then_else, self.sense_more_space_right, out1, out2)
-
-    def sense_more_space_down(self):
-        return True if self.body[0][0] > YSIZE/2-1 else False
-
-    def if_more_space_down(self, out1, out2):
-        return partial(if_then_else, self.sense_more_space_down, out1, out2)
-    ##########
-
-
-    ##########
     # Sense direct food direction
     def sense_food_on_x_axis_up(self):
         return self.food[0][1] == self.body[0][1] and self.food[0][0] < self.body[0][0]
@@ -288,7 +229,6 @@ class SnakePlayer(list):
 
     def if_food_on_y_axis_right(self, out1, out2):
         return partial(if_then_else, self.sense_food_on_y_axis_right, out1, out2)
-    ##########
 
 
 def checkWall(coord):
@@ -337,11 +277,11 @@ def displayStrategyRun(individual):
     curses.curs_set(0)
     win.border(0)
     win.nodelay(1)
-    win.timeout(20)
-    steps = 0
+    win.timeout(10)
+
     snake._reset()
     food = placeFood(snake)
-    timer_array = []
+
     for f in food:
         win.addch(f[0], f[1], '@')
 
@@ -356,7 +296,7 @@ def displayStrategyRun(individual):
 
         routine()
         snake.updatePosition()
-        steps += 1
+
         if snake.body[0] in food:
             snake.score += 1
             for f in food:
@@ -364,7 +304,6 @@ def displayStrategyRun(individual):
             food = placeFood(snake)
             for f in food:
                 win.addch(f[0], f[1], '@')
-            timer_array.append(timer)
             timer = 0
         else:
             last = snake.body.pop()
@@ -380,7 +319,7 @@ def displayStrategyRun(individual):
 
     print("Collided: {}".format(collided))
     print("Bounds hit: {}".format(hitBounds))
-    return snake.score, steps, timer_array
+    return snake.score,
 
 
 def runGame(individual):
@@ -390,15 +329,12 @@ def runGame(individual):
     routine = gp.compile(individual, pset)
     snake._reset()
     food = placeFood(snake)
-    timer_array = []
     timer = 0
-    steps = 0
-    while not snake.snakeHasCollided() and not timer == 2 * XSIZE * YSIZE:
+    while not snake.snakeHasCollided() and not timer == XSIZE * YSIZE:
 
         routine()
         snake.updatePosition()
 
-        steps += 1
         if snake.body[0] in food:
             snake.score += 1
             if not (checkFood(snake)):
@@ -407,50 +343,24 @@ def runGame(individual):
                 return (snake.score,)
             else:  # If coords free, then place food
                 food = placeFood(snake)
-                timer_array.append(timer)
                 timer = 0
         else:
             snake.body.pop()
             timer += 1  # timesteps since last eaten
 
-    final_distance_from_food = abs(snake.body[0][0] - food[0][0]) + abs(snake.body[0][1] - food[0][1])
     totalScore += snake.score
-    return totalScore, steps, timer_array, final_distance_from_food
+    return totalScore,
 
 
 def runGameAvg(individual):
     global avg_scores
-    score_avgs = []
-    # steps_avgs = []
-    # timer_avgs = []
-    # fd_dist_avgs = []
-
-    for x in range(4):
-        res = runGame(individual)
-        score_avgs.append(res[0])
-        # steps_avgs.append(res[1])
-        # timer_avgs.append(sum(res[2])/len(res[2]) if len(res[2]) > 0 else 0)
-        # fd_dist_avgs.append(res[3])
-
-    # score_avg = max(score_avgs)
-    score_avg = sum(score_avgs)/len(score_avgs)
-    # steps_avg = sum(steps_avgs)/len(steps_avgs)
-    # timer_avg = max(sum(timer_avgs)/len(timer_avgs), 1)
-    # fd_dist_avg = sum(fd_dist_avgs)/len(fd_dist_avgs)
-    avg_scores.append(score_avg)
-
-    return score_avg,
-    # return score_avg, steps_avg
-    # return score_avg/fd_dist_avg,
-    # return score_avg, 20/timer_avg
-    # return score_avg, steps_avg, timer_avg
-    # return (score_avg/timer_avg,)
-    # return (score_avg*timer_avg,)
-    # return (score_avg/steps_avg,)
-    # return (score_avg*steps_avg,)
+    avgs = [runGame(individual)[0] for x in range(4)]
+    avg = sum(avgs)/len(avgs)
+    avg_scores.append(avg)
+    return (avg,)
 
 
-def main(rseed=300, use_last_best=False):
+def main(rseed=300):
     global snake
     global pset
     global avg_scores
@@ -465,28 +375,18 @@ def main(rseed=300, use_last_best=False):
     # pset.addPrimitive(snake.if_food_ahead, 2)
     # pset.addPrimitive(snake.if_object_ahead, 2)
 
-    pset.addPrimitive(snake.if_object_is_to_right, 2)
-    pset.addPrimitive(snake.if_object_is_to_left, 2)
-    pset.addPrimitive(snake.if_object_is_up, 2)
-    pset.addPrimitive(snake.if_object_is_down, 2)
-
     pset.addPrimitive(snake.if_food_right, 2)
     pset.addPrimitive(snake.if_food_down, 2)
     pset.addPrimitive(snake.if_food_left, 2)
     pset.addPrimitive(snake.if_food_up, 2)
 
-    pset.addPrimitive(snake.if_body_longer_than_2X, 2)
-    pset.addPrimitive(snake.if_body_longer_than_2Y, 2)
-
-    # pset.addPrimitive(snake.if_more_space_left, 2)
-    # pset.addPrimitive(snake.if_more_space_up, 2)
-    # pset.addPrimitive(snake.if_more_space_right, 2)
-    # pset.addPrimitive(snake.if_more_space_down, 2)
-
     pset.addPrimitive(snake.if_object_right, 2)
     pset.addPrimitive(snake.if_object_left, 2)
     pset.addPrimitive(snake.if_object_up, 2)
     pset.addPrimitive(snake.if_object_down, 2)
+
+    pset.addPrimitive(snake.if_body_longer_than_2X, 2)
+    pset.addPrimitive(snake.if_body_longer_than_2Y, 2)
 
     # pset.addPrimitive(snake.if_in_corner_left_up, 2)
     # pset.addPrimitive(snake.if_in_corner_left_down, 2)
@@ -512,32 +412,12 @@ def main(rseed=300, use_last_best=False):
                      creator.Individual, toolbox.expr_init)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("evaluate", runGameAvg)
-
-    # pool = multiprocessing.Pool()
-    # toolbox.register("map", pool.map)
-
-    # toolbox.register("select", tools.selTournament, tournsize=7)
-    # toolbox.register("select", tools.selBest)
-    # toolbox.register("select", tools.selNSGA2)
-    kwargs = {"fitness_size": 7, "parsimony_size": 1.3, "fitness_first": False}
-    toolbox.register("select", tools.selDoubleTournament, **kwargs)
-
-    # kwargs = {"termpb": 0.4,}
-    # toolbox.register("mate", gp.cxOnePointLeafBiased, **kwargs)
+    toolbox.register("select", tools.selTournament, tournsize=7)
     toolbox.register("mate", gp.cxOnePoint)
-    # toolbox.register("mate", gp.cxSemantic)
-
-    # toolbox.register("expr_mut", gp.genHalfAndHalf, min_=1, max_=3)
-    toolbox.register("expr_mut", gp.genGrow, min_=1, max_=4)   # [18, 16, 19, 37, 10]
-    # toolbox.register("expr_mut", gp.genFull, min_=1, max_=3)
-
+    toolbox.register("expr_mut", gp.genHalfAndHalf, min_=1, max_=3)
     toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
-    # toolbox.register("mutate", gp.mutShrink) # worse
-    # toolbox.register("mutate", gp.mutNodeReplacement, pset=pset) # worse
-    # toolbox.register("mutate", gp.mutInsert, pset=pset) # worse
-
-    toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=21)) # For bloating
-    toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=21)) # For bloating
+    toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=20))
+    toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=20))
 
     stats_fit = tools.Statistics(key=lambda ind: ind.fitness.values)
     mstats = tools.MultiStatistics(fitness=stats_fit)
@@ -547,31 +427,18 @@ def main(rseed=300, use_last_best=False):
     mstats.register("max", numpy.max, axis=0)
 
     # Start a new evolution
-    population = toolbox.population(n=350)
-    # if use_last_best and os.path.isfile('best_player.pkl'):
-    #     with open('best_player.pkl', 'rb') as f:
-    #         best_from_last_gen = pickle.loads(f.read())
-    #         if (type(best_from_last_gen) == creator.Individual):
-    #             population.append(best_from_last_gen)
-    #             population = population[1:]
-
-    hof = tools.HallOfFame(maxsize=2)
-    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
-
-    # pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150,
-    #                                stats=mstats, halloffame=hof,
-    #                                verbose=True)
+    population = toolbox.population(n=200)
+    hof = tools.HallOfFame(maxsize=1)
+    pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 120,
+                                   stats=mstats, halloffame=hof,
+                                   verbose=True)
     smoothing_factor = 20
     avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
-    # plt.plot(list(range(len(avg_scores))), avg_scores)
-    # plt.show()
+    plt.plot(list(range(len(avg_scores))), avg_scores)
+    plt.show()
 
     epr = tools.selBest(hof, 1)[0]
-
-    with open('best_player.pkl', 'wb') as f:
-        f.write(pickle.dumps(epr))
-
-    displayStrategyRun(epr)
+    # displayStrategyRun(epr)
     best_run_5_times = [runGame(epr)[0] for x in range(5)]
     print("Best from pop, run 5 times: {}".format(best_run_5_times))
     print("Best from pop, avg: {}".format(sum(best_run_5_times)/5))
@@ -588,4 +455,4 @@ def main(rseed=300, use_last_best=False):
 
     # g.draw("tree.pdf")
 
-main(rseed=69, use_last_best=False)
+main()
