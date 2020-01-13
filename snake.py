@@ -1,5 +1,5 @@
 import time
-# import pickle
+import sys
 import os.path
 import copy
 import random
@@ -173,6 +173,14 @@ class SnakePlayer(list):
     def if_food_up(self, out1, out2):
         return partial(if_then_else, self.sense_food_up, out1, out2)
     ##########
+
+    def sense_object_ahead(self):
+        self.getAheadLocation()
+        coord = self.ahead
+        return coord in self.body or checkWall(coord)
+
+    def if_object_ahead(self, out1, out2):
+        return partial(if_then_else, self.sense_object_ahead, out1, out2)
 
 
     ##########
@@ -426,26 +434,26 @@ def runGame(individual):
 def runGameAvg(individual):
     global avg_scores
     score_avgs = []
-    # steps_avgs = []
+    steps_avgs = []
     # timer_avgs = []
     # fd_dist_avgs = []
 
-    for x in range(4):
+    for x in range(1):
         res = runGame(individual)
         score_avgs.append(res[0])
-        # steps_avgs.append(res[1])
+        steps_avgs.append(res[1])
         # timer_avgs.append(sum(res[2])/len(res[2]) if len(res[2]) > 0 else 0)
         # fd_dist_avgs.append(res[3])
 
     # score_avg = max(score_avgs)
     score_avg = sum(score_avgs)/len(score_avgs)
-    # steps_avg = sum(steps_avgs)/len(steps_avgs)
+    steps_avg = sum(steps_avgs)/len(steps_avgs)
     # timer_avg = max(sum(timer_avgs)/len(timer_avgs), 1)
     # fd_dist_avg = sum(fd_dist_avgs)/len(fd_dist_avgs)
     avg_scores.append(score_avg)
 
-    return score_avg,
-    # return steps_avg
+    # return score_avg,
+    return steps_avg, score_avg
     # return score_avg/fd_dist_avg,
     # return score_avg, 20/timer_avg
     # return score_avg, steps_avg, timer_avg
@@ -480,6 +488,8 @@ def main(rseed=300, use_last_best=False):
     pset.addPrimitive(snake.if_food_left, 2)
     pset.addPrimitive(snake.if_food_up, 2)
 
+    # pset.addPrimitive(snake.if_object_ahead, 2)
+
     pset.addPrimitive(snake.if_body_longer_than_2X, 2)
     pset.addPrimitive(snake.if_body_longer_than_2Y, 2)
 
@@ -508,7 +518,7 @@ def main(rseed=300, use_last_best=False):
     pset.addTerminal(snake.changeDirectionRight)
     pset.addTerminal(snake.changeDirectionUp)
 
-    creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+    creator.create("FitnessMax", base.Fitness, weights=(1, ))
     creator.create("Individual", gp.PrimitiveTree,
                    fitness=creator.FitnessMax, pset=pset)
     toolbox = base.Toolbox()
@@ -530,7 +540,7 @@ def main(rseed=300, use_last_best=False):
     # toolbox.register("mate", gp.cxSemantic)
 
     # toolbox.register("expr_mut", gp.genHalfAndHalf, min_=1, max_=3)
-    toolbox.register("expr_mut", gp.genGrow, min_=1, max_=4)   # [18, 16, 19, 37, 10]
+    toolbox.register("expr_mut", gp.genGrow, min_=1, max_=4)
     # toolbox.register("expr_mut", gp.genFull, min_=1, max_=3)
 
     toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
@@ -550,16 +560,10 @@ def main(rseed=300, use_last_best=False):
 
     # Start a new evolution
     population = toolbox.population(n=350)
-    # if use_last_best and os.path.isfile('best_player.pkl'):
-    #     with open('best_player.pkl', 'rb') as f:
-    #         best_from_last_gen = pickle.loads(f.read())
-    #         if (type(best_from_last_gen) == creator.Individual):
-    #             population.append(best_from_last_gen)
-    #             population = population[1:]
 
     hof = tools.HallOfFame(maxsize=2)
 
-    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
+    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 150, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaMuCommaLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaGenerateUpdate(toolbox, 150, stats=mstats, halloffame=hof, verbose=True)
@@ -575,7 +579,7 @@ def main(rseed=300, use_last_best=False):
     #     f.write(pickle.dumps(epr))
 
     # displayStrategyRun(epr)
-    iterations = 100
+    iterations = 500
     runs = [runGame(epr)[0] for x in range(iterations)]
     print("Best from pop, run 5 times: {}".format(runs))
     print("Best from pop, avg: {}".format(sum(runs)/len(runs)))
@@ -632,6 +636,12 @@ def parse_results(results, seeds):
 
 
 if __name__ == "__main__":
+
+    name = ""
+    if len(sys.argv) > 1:
+        name = sys.argv[1] if sys.argv[1] != "" else ""
+             
+
     timestr = time.strftime("%Y%m%d-%H%M%S")
     seeds = [random.randint(0, 1000) for i in range(30)]
     print(seeds)
@@ -639,6 +649,7 @@ if __name__ == "__main__":
     for i in seeds:
         results.append(main(rseed=i, use_last_best=False))
 
-    filename = "results/" + str(timestr) + ".txt"
+    filename = "results/" + str(timestr) + name + ".txt"
+
     with open(filename, 'w') as f:
         f.write(parse_results(results, seeds))
