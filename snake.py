@@ -10,6 +10,8 @@ import numpy
 import csv
 from functools import partial
 import multiprocessing
+import time
+import statistics
 # import matplotlib.pyplot as plt
 # import networkx as nx
 # import pygraphviz as pgv
@@ -442,7 +444,7 @@ def runGameAvg(individual):
     avg_scores.append(score_avg)
 
     return score_avg,
-    # return score_avg, steps_avg
+    # return steps_avg
     # return score_avg/fd_dist_avg,
     # return score_avg, 20/timer_avg
     # return score_avg, steps_avg, timer_avg
@@ -556,9 +558,10 @@ def main(rseed=300, use_last_best=False):
 
     hof = tools.HallOfFame(maxsize=2)
 
-    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 275, 0.5, 0.2, 150, stats=mstats, halloffame=hof, verbose=True)
+    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 275, 0.5, 0.2, 5, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaMuCommaLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150, stats=mstats, halloffame=hof, verbose=True)
+    # pop, log = algorithms.eaGenerateUpdate(toolbox, 150, stats=mstats, halloffame=hof, verbose=True)
     
     smoothing_factor = 20
     avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
@@ -571,9 +574,11 @@ def main(rseed=300, use_last_best=False):
     #     f.write(pickle.dumps(epr))
 
     # displayStrategyRun(epr)
-    best_run_5_times = [runGame(epr)[0] for x in range(5)]
-    print("Best from pop, run 5 times: {}".format(best_run_5_times))
-    print("Best from pop, avg: {}".format(sum(best_run_5_times)/5))
+    iterations = 100
+    runs = [runGame(epr)[0] for x in range(iterations)]
+    print("Best from pop, run 5 times: {}".format(runs))
+    print("Best from pop, avg: {}".format(sum(runs)/len(runs)))
+    return runs
 
 # Section: Graphing
     # nodes, edges, labels = gp.graph(epr)
@@ -601,5 +606,30 @@ def main(rseed=300, use_last_best=False):
 # Section End: Graphing
 
 
+def parse_results(results, seeds):
+    final_string = ""
+    for i in range(len(results)):
+        result_set = results[i]
+        seed = seeds[i]
+        s = "{}\n\nMean:{}\nMedian:{}\nMode:{}\nSeed:{}\n\n\n".format(
+            str(result_set),
+            str(statistics.mean(result_set)),
+            str(statistics.median(result_set)),
+            str(statistics.mode(result_set)),
+            str(seed)
+        )
+        final_string += s
+    return final_string
+
+
 if __name__ == "__main__":
-    main(rseed=69, use_last_best=False)
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+
+    seeds = [39, 69, 125, 329, 679]
+    results = []
+    for i in seeds:
+        results.append(main(rseed=i, use_last_best=False))
+
+    filename = "results/" + str(timestr) + "_" + str(seeds) + ".txt"
+    with open(filename, 'w') as f:
+        f.write(parse_results(results, seeds))
