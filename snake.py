@@ -12,6 +12,7 @@ from functools import partial
 import multiprocessing
 import time
 import statistics
+from itertools import chain
 # import matplotlib.pyplot as plt
 # import networkx as nx
 # import pygraphviz as pgv
@@ -558,7 +559,7 @@ def main(rseed=300, use_last_best=False):
 
     hof = tools.HallOfFame(maxsize=2)
 
-    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 275, 0.5, 0.2, 5, stats=mstats, halloffame=hof, verbose=True)
+    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaMuCommaLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaGenerateUpdate(toolbox, 150, stats=mstats, halloffame=hof, verbose=True)
@@ -608,28 +609,36 @@ def main(rseed=300, use_last_best=False):
 
 def parse_results(results, seeds):
     final_string = ""
+    means = [statistics.mean(x) for x in results]
+    medians = [statistics.median(x) for x in results]
+    modes = [statistics.mode(x) for x in results]
     for i in range(len(results)):
-        result_set = results[i]
-        seed = seeds[i]
         s = "{}\n\nMean:{}\nMedian:{}\nMode:{}\nSeed:{}\n\n\n".format(
-            str(result_set),
-            str(statistics.mean(result_set)),
-            str(statistics.median(result_set)),
-            str(statistics.mode(result_set)),
-            str(seed)
+            str(results[i]), means[i], medians[i], modes[i], seeds[i]
         )
         final_string += s
+
+    final_string += "Seeds:\n{}\n\n".format(seeds)
+    final_string += "Means:\n{}\n\n".format(means)
+    final_string += "Medians:\n{}\n\n".format(medians)
+    final_string += "Modes:\n{}\n\n".format(modes)
+
+    results_flat = list(chain.from_iterable(results))
+    final_string += "\nTop Level Results:\nMean:{}\nMedian:{}\nMode:{}\n\n\n\n".format(
+        statistics.mean(results_flat), statistics.median(results_flat), statistics.mode(results_flat)
+    )
+
     return final_string
 
 
 if __name__ == "__main__":
     timestr = time.strftime("%Y%m%d-%H%M%S")
-
-    seeds = [39, 69, 125, 329, 679]
+    seeds = [random.randint(0, 1000) for i in range(30)]
+    print(seeds)
     results = []
     for i in seeds:
         results.append(main(rseed=i, use_last_best=False))
 
-    filename = "results/" + str(timestr) + "_" + str(seeds) + ".txt"
+    filename = "results/" + str(timestr) + ".txt"
     with open(filename, 'w') as f:
         f.write(parse_results(results, seeds))
