@@ -434,26 +434,26 @@ def runGame(individual):
 def runGameAvg(individual):
     global avg_scores
     score_avgs = []
-    steps_avgs = []
+    # steps_avgs = []
     # timer_avgs = []
     # fd_dist_avgs = []
 
-    for x in range(1):
+    for x in range(3):
         res = runGame(individual)
         score_avgs.append(res[0])
-        steps_avgs.append(res[1])
+        # steps_avgs.append(res[1])
         # timer_avgs.append(sum(res[2])/len(res[2]) if len(res[2]) > 0 else 0)
         # fd_dist_avgs.append(res[3])
 
     # score_avg = max(score_avgs)
     score_avg = sum(score_avgs)/len(score_avgs)
-    steps_avg = sum(steps_avgs)/len(steps_avgs)
+    # steps_avg = sum(steps_avgs)/len(steps_avgs)
     # timer_avg = max(sum(timer_avgs)/len(timer_avgs), 1)
     # fd_dist_avg = sum(fd_dist_avgs)/len(fd_dist_avgs)
     avg_scores.append(score_avg)
 
-    # return score_avg,
-    return steps_avg, score_avg
+    return score_avg,
+    # return steps_avg, score_avg
     # return score_avg/fd_dist_avg,
     # return score_avg, 20/timer_avg
     # return score_avg, steps_avg, timer_avg
@@ -472,16 +472,16 @@ def main(rseed=300, use_last_best=False):
 
     pset = gp.PrimitiveSet("MAIN", 0)
 
-    pset.addPrimitive(prog2, 2)
-    pset.addPrimitive(prog3, 3)
+    # pset.addPrimitive(prog2, 2)
+    # pset.addPrimitive(prog3, 3)
 
     # pset.addPrimitive(snake.if_food_ahead, 2)
     # pset.addPrimitive(snake.if_object_ahead, 2)
 
-    pset.addPrimitive(snake.if_object_is_to_right, 2)
-    pset.addPrimitive(snake.if_object_is_to_left, 2)
-    pset.addPrimitive(snake.if_object_is_up, 2)
-    pset.addPrimitive(snake.if_object_is_down, 2)
+    # pset.addPrimitive(snake.if_object_is_to_right, 2)
+    # pset.addPrimitive(snake.if_object_is_to_left, 2)
+    # pset.addPrimitive(snake.if_object_is_up, 2)
+    # pset.addPrimitive(snake.if_object_is_down, 2)
 
     pset.addPrimitive(snake.if_food_right, 2)
     pset.addPrimitive(snake.if_food_down, 2)
@@ -490,8 +490,8 @@ def main(rseed=300, use_last_best=False):
 
     # pset.addPrimitive(snake.if_object_ahead, 2)
 
-    pset.addPrimitive(snake.if_body_longer_than_2X, 2)
-    pset.addPrimitive(snake.if_body_longer_than_2Y, 2)
+    # pset.addPrimitive(snake.if_body_longer_than_2X, 2)
+    # pset.addPrimitive(snake.if_body_longer_than_2Y, 2)
 
     # pset.addPrimitive(snake.if_more_space_left, 2)
     # pset.addPrimitive(snake.if_more_space_up, 2)
@@ -531,7 +531,7 @@ def main(rseed=300, use_last_best=False):
     # toolbox.register("select", tools.selTournament, tournsize=7)
     # toolbox.register("select", tools.selBest)
     # toolbox.register("select", tools.selNSGA2)
-    kwargs = {"fitness_size": 7, "parsimony_size": 1.3, "fitness_first": False}
+    kwargs = {"fitness_size": 7, "parsimony_size": 1.2, "fitness_first": False}
     toolbox.register("select", tools.selDoubleTournament, **kwargs)
 
     # kwargs = {"termpb": 0.4,}
@@ -548,8 +548,8 @@ def main(rseed=300, use_last_best=False):
     # toolbox.register("mutate", gp.mutNodeReplacement, pset=pset) # worse
     # toolbox.register("mutate", gp.mutInsert, pset=pset) # worse
 
-    toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=21)) # For bloating
-    toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=21)) # For bloating
+    # toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) # For bloating
+    # toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) # For bloating
 
     stats_fit = tools.Statistics(key=lambda ind: ind.fitness.values)
     mstats = tools.MultiStatistics(fitness=stats_fit)
@@ -563,9 +563,9 @@ def main(rseed=300, use_last_best=False):
 
     hof = tools.HallOfFame(maxsize=2)
 
-    pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 150, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
+    # pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 150, 0.5, 0.22, 120, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaMuCommaLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
-    # pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150, stats=mstats, halloffame=hof, verbose=True)
+    pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaGenerateUpdate(toolbox, 150, stats=mstats, halloffame=hof, verbose=True)
     
     smoothing_factor = 20
@@ -579,7 +579,7 @@ def main(rseed=300, use_last_best=False):
     #     f.write(pickle.dumps(epr))
 
     # displayStrategyRun(epr)
-    iterations = 500
+    iterations = 1000
     runs = [runGame(epr)[0] for x in range(iterations)]
     print("Best from pop, run 5 times: {}".format(runs))
     print("Best from pop, avg: {}".format(sum(runs)/len(runs)))
@@ -643,7 +643,7 @@ if __name__ == "__main__":
              
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    seeds = [random.randint(0, 1000) for i in range(30)]
+    seeds = [random.randint(0, 1000) for i in range(15)]
     print(seeds)
     results = []
     for i in seeds:
