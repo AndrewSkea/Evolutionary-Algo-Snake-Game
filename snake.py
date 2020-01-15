@@ -476,7 +476,7 @@ def main(rseed=300, use_last_best=False):
     pset.addPrimitive(snake.if_object_up, 2)
     pset.addPrimitive(snake.if_object_down, 2)
 
-    pset.addTerminal(snake.keepSameDirection)
+    # pset.addTerminal(snake.keepSameDirection)
     pset.addTerminal(snake.changeDirectionDown)
     pset.addTerminal(snake.changeDirectionLeft)
     pset.addTerminal(snake.changeDirectionRight)
