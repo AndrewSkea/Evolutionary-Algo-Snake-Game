@@ -13,21 +13,13 @@ import multiprocessing
 import time
 import statistics
 from itertools import chain
-# import matplotlib.pyplot as plt
-# import networkx as nx
-# import pygraphviz as pgv
-# import matplotlib.pyplot as plt
+from variables import *
 
 from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
 from deap import gp
-
-S_RIGHT, S_LEFT, S_UP, S_DOWN = 0, 1, 2, 3
-XSIZE, YSIZE = 14, 14
-# NOTE: YOU MAY NEED TO ADD A CHECK THAT THERE ARE ENOUGH SPACES LEFT FOR THE FOOD (IF THE TAIL IS VERY LONG)
-NFOOD = 1
 
 
 def progn(*args):
@@ -80,6 +72,9 @@ class SnakePlayer(list):
         self.body.insert(0, self.ahead)
 
     # You are free to define more sensing options to the snake
+
+    def keepSameDirection(self):
+        pass
 
     def changeDirectionUp(self):
         self.direction = S_UP
@@ -433,34 +428,20 @@ def runGame(individual):
 
 def runGameAvg(individual):
     global avg_scores
-    score_avgs = []
-    steps_avgs = []
-    # timer_avgs = []
-    # fd_dist_avgs = []
+    index = 0
+    index = 1 if FIT_FUNC == "steps" else 0
+    index = 2 if FIT_FUNC == "timer" else 0
+    index = 3 if FIT_FUNC == "dist" else 0
+    averages = []
 
-    for x in range(3):
+    for x in range(INDIVIDUAL_ITER):
         res = runGame(individual)
-        score_avgs.append(res[0])
-        steps_avgs.append(res[1])
-        # timer_avgs.append(sum(res[2])/len(res[2]) if len(res[2]) > 0 else 0)
-        # fd_dist_avgs.append(res[3])
+        averages.append(res[index])
 
-    # score_avg = max(score_avgs)
-    score_avg = sum(score_avgs)/len(score_avgs)
-    steps_avg = sum(steps_avgs)/len(steps_avgs)
-    # timer_avg = max(sum(timer_avgs)/len(timer_avgs), 1)
-    # fd_dist_avg = sum(fd_dist_avgs)/len(fd_dist_avgs)
-    avg_scores.append(score_avg)
-
-    # return score_avg,
-    return steps_avg, score_avg
-    # return score_avg/fd_dist_avg,
-    # return score_avg, 20/timer_avg
-    # return score_avg, steps_avg, timer_avg
-    # return (score_avg/timer_avg,)
-    # return (score_avg*timer_avg,)
-    # return (score_avg/steps_avg,)
-    # return (score_avg*steps_avg,)
+    ret = sum(averages)/len(averages)
+    ret = max(averages) if FIT_TYPE == "max" else ret
+    ret = min(averages) if FIT_TYPE == "min" else ret
+    return ret,
 
 
 def main(rseed=300, use_last_best=False):
@@ -472,16 +453,13 @@ def main(rseed=300, use_last_best=False):
 
     pset = gp.PrimitiveSet("MAIN", 0)
 
-    # pset.addPrimitive(prog2, 2)
-    # pset.addPrimitive(prog3, 3)
+    pset.addPrimitive(prog2, 2)
+    pset.addPrimitive(prog3, 3)
 
-    # pset.addPrimitive(snake.if_food_ahead, 2)
-    # pset.addPrimitive(snake.if_object_ahead, 2)
-
-    # pset.addPrimitive(snake.if_object_is_to_right, 2)
-    # pset.addPrimitive(snake.if_object_is_to_left, 2)
-    # pset.addPrimitive(snake.if_object_is_up, 2)
-    # pset.addPrimitive(snake.if_object_is_down, 2)
+    pset.addPrimitive(snake.if_object_is_to_right, 2)
+    pset.addPrimitive(snake.if_object_is_to_left, 2)
+    pset.addPrimitive(snake.if_object_is_up, 2)
+    pset.addPrimitive(snake.if_object_is_down, 2)
 
     pset.addPrimitive(snake.if_food_right, 2)
     pset.addPrimitive(snake.if_food_down, 2)
@@ -493,63 +471,45 @@ def main(rseed=300, use_last_best=False):
     # pset.addPrimitive(snake.if_body_longer_than_2X, 2)
     # pset.addPrimitive(snake.if_body_longer_than_2Y, 2)
 
-    # pset.addPrimitive(snake.if_more_space_left, 2)
-    # pset.addPrimitive(snake.if_more_space_up, 2)
-    # pset.addPrimitive(snake.if_more_space_right, 2)
-    # pset.addPrimitive(snake.if_more_space_down, 2)
-
     pset.addPrimitive(snake.if_object_right, 2)
     pset.addPrimitive(snake.if_object_left, 2)
     pset.addPrimitive(snake.if_object_up, 2)
     pset.addPrimitive(snake.if_object_down, 2)
 
-    # pset.addPrimitive(snake.if_in_corner_left_up, 2)
-    # pset.addPrimitive(snake.if_in_corner_left_down, 2)
-    # pset.addPrimitive(snake.if_in_corner_right_up, 2)
-    # pset.addPrimitive(snake.if_in_corner_right_down, 2)
-
-    # pset.addPrimitive(snake.if_food_on_x_axis_up, 2)
-    # pset.addPrimitive(snake.if_food_on_x_axis_down, 2)
-    # pset.addPrimitive(snake.if_food_on_y_axis_right, 2)
-    # pset.addPrimitive(snake.if_food_on_y_axis_left, 2)
-
+    pset.addTerminal(snake.keepSameDirection)
     pset.addTerminal(snake.changeDirectionDown)
     pset.addTerminal(snake.changeDirectionLeft)
     pset.addTerminal(snake.changeDirectionRight)
     pset.addTerminal(snake.changeDirectionUp)
 
-    creator.create("FitnessMax", base.Fitness, weights=(1, 1))
-    creator.create("Individual", gp.PrimitiveTree,
-                   fitness=creator.FitnessMax, pset=pset)
+    creator.create("FitnessMax", base.Fitness, weights=(1,))
+    creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax, pset=pset)
     toolbox = base.Toolbox()
     toolbox.register("expr_init", gp.genHalfAndHalf, pset=pset, min_=1, max_=3)
-    toolbox.register("individual", tools.initIterate,
-                     creator.Individual, toolbox.expr_init)
+    toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr_init)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("evaluate", runGameAvg)
 
-    # toolbox.register("select", tools.selTournament, tournsize=7)
+    # toolbox.register("select", tools.selTournament, tournsize=TOURNAMENT_FITNESS_SIZE)
     # toolbox.register("select", tools.selBest)
-    # toolbox.register("select", tools.selNSGA2)
-    kwargs = {"fitness_size": 7, "parsimony_size": 1.3, "fitness_first": False}
+    kwargs = {"fitness_size": TOURNAMENT_FITNESS_SIZE, "parsimony_size": PARSIMONY_SIZE, "fitness_first": False}
     toolbox.register("select", tools.selDoubleTournament, **kwargs)
 
-    # kwargs = {"termpb": 0.1,}
-    # toolbox.register("mate", gp.cxOnePointLeafBiased, **kwargs)
-    toolbox.register("mate", gp.cxOnePoint)
-    # toolbox.register("mate", gp.cxSemantic)
+    kwargs = {"termpb": 0.1}
+    toolbox.register("mate", gp.cxOnePointLeafBiased, **kwargs)
+    # toolbox.register("mate", gp.cxOnePoint)
 
-    # toolbox.register("expr_mut", gp.genHalfAndHalf, min_=1, max_=3)
-    toolbox.register("expr_mut", gp.genGrow, min_=1, max_=4)
-    # toolbox.register("expr_mut", gp.genFull, min_=1, max_=3)
+    # toolbox.register("expr_mut", gp.genHalfAndHalf, min_=1, max_=CX_ONEPOINT_MAX_SIZE)
+    toolbox.register("expr_mut", gp.genGrow, min_=1, max_=CX_ONEPOINT_MAX_SIZE)
+    # toolbox.register("expr_mut", gp.genFull, min_=1, max_=CX_ONEPOINT_MAX_SIZE)
 
     toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
-    # toolbox.register("mutate", gp.mutShrink) # worse
-    # toolbox.register("mutate", gp.mutNodeReplacement, pset=pset) # worse
-    # toolbox.register("mutate", gp.mutInsert, pset=pset) # worse
+    # toolbox.register("mutate", gp.mutShrink)
+    # toolbox.register("mutate", gp.mutNodeReplacement, pset=pset)
+    # toolbox.register("mutate", gp.mutInsert, pset=pset)
 
-    toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=21)) # For bloating
-    toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=21)) # For bloating
+    toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=MAX_HEIGHT)) # For bloating
+    toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=MAX_HEIGHT)) # For bloating
 
     stats_fit = tools.Statistics(key=lambda ind: ind.fitness.values)
     mstats = tools.MultiStatistics(fitness=stats_fit)
@@ -558,15 +518,15 @@ def main(rseed=300, use_last_best=False):
     mstats.register("min", numpy.min, axis=0)
     mstats.register("max", numpy.max, axis=0)
 
-    population = toolbox.population(n=350)
-    hof = tools.HallOfFame(maxsize=2)
+    population = toolbox.population(n=POPULATION_SIZE)
+    hof = tools.HallOfFame(maxsize=HOF_SIZE)
 
     # pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 150, 0.5, 0.22, 120, stats=mstats, halloffame=hof, verbose=True)
     # pop, log = algorithms.eaMuCommaLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
-    pop, log = algorithms.eaSimple(population, toolbox, 0.5, 0.2, 150, stats=mstats, halloffame=hof, verbose=True)
+    pop, log = algorithms.eaSimple(population, toolbox, CROSS_PROB, MUT_PROB, ITERATIONS, stats=mstats, halloffame=hof, verbose=True)
     
-    smoothing_factor = 20
-    avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
+    # smoothing_factor = 20
+    # avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
     # plt.plot(list(range(len(avg_scores))), avg_scores)
     # plt.show()
 
@@ -623,6 +583,10 @@ def parse_results(results, seeds):
     final_string += "\nTop Level Results:\nMean:{}\nMedian:{}\nMode:{}\n\n\n\n".format(
         statistics.mean(results_flat), statistics.median(results_flat), statistics.mode(results_flat)
     )
+
+    with open('./variables.py') as f:
+        var_string = "\n\n\n\n\nVariables:\n{}".format(f.read())
+        final_string += var_string
 
     return final_string
 
