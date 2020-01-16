@@ -456,10 +456,10 @@ def main(rseed=300, use_last_best=False):
     pset.addPrimitive(prog2, 2)
     pset.addPrimitive(prog3, 3)
 
-    pset.addPrimitive(snake.if_object_is_to_right, 2)
-    pset.addPrimitive(snake.if_object_is_to_left, 2)
-    pset.addPrimitive(snake.if_object_is_up, 2)
-    pset.addPrimitive(snake.if_object_is_down, 2)
+    # pset.addPrimitive(snake.if_object_is_to_right, 2)
+    # pset.addPrimitive(snake.if_object_is_to_left, 2)
+    # pset.addPrimitive(snake.if_object_is_up, 2)
+    # pset.addPrimitive(snake.if_object_is_down, 2)
 
     pset.addPrimitive(snake.if_food_right, 2)
     pset.addPrimitive(snake.if_food_down, 2)
