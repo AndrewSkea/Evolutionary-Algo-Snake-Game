@@ -14,6 +14,7 @@ import time
 import statistics
 from itertools import chain
 from variables import *
+from matplotlib import pyplot as plt
 
 from deap import algorithms
 from deap import base
@@ -441,6 +442,7 @@ def runGameAvg(individual):
     ret = sum(averages)/len(averages)
     ret = max(averages) if FIT_TYPE == "max" else ret
     ret = min(averages) if FIT_TYPE == "min" else ret
+    avg_scores.append(ret)
     return ret,
 
 
@@ -456,10 +458,10 @@ def main(rseed=300, use_last_best=False):
     pset.addPrimitive(prog2, 2)
     pset.addPrimitive(prog3, 3)
 
-    # pset.addPrimitive(snake.if_object_is_to_right, 2)
-    # pset.addPrimitive(snake.if_object_is_to_left, 2)
-    # pset.addPrimitive(snake.if_object_is_up, 2)
-    # pset.addPrimitive(snake.if_object_is_down, 2)
+    pset.addPrimitive(snake.if_object_is_to_right, 2)
+    pset.addPrimitive(snake.if_object_is_to_left, 2)
+    pset.addPrimitive(snake.if_object_is_up, 2)
+    pset.addPrimitive(snake.if_object_is_down, 2)
 
     pset.addPrimitive(snake.if_food_right, 2)
     pset.addPrimitive(snake.if_food_down, 2)
@@ -525,10 +527,10 @@ def main(rseed=300, use_last_best=False):
     # pop, log = algorithms.eaMuCommaLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
     pop, log = algorithms.eaSimple(population, toolbox, CROSS_PROB, MUT_PROB, ITERATIONS, stats=mstats, halloffame=hof, verbose=True)
     
-    # smoothing_factor = 20
-    # avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
-    # plt.plot(list(range(len(avg_scores))), avg_scores)
-    # plt.show()
+    smoothing_factor = 20
+    avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
+    plt.plot(list(range(len(avg_scores))), avg_scores)
+    plt.show()
 
     epr = tools.selBest(hof, 1)[0]
     iterations = 1000
@@ -599,7 +601,8 @@ if __name__ == "__main__":
              
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    seeds = [random.randint(0, 1000) for i in range(30)]
+    # seeds = [random.randint(0, 1000) for i in range(30)]
+    seeds = [153]
     print(seeds)
     results = []
     for i in seeds:
