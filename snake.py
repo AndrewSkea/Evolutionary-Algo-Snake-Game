@@ -417,7 +417,7 @@ def runGame(individual):
                 print("Score: {} with steps: {} and seed: {}".format(snake.score, steps, cur_seed))
                 with open("best_individual_{}_{}.pickle".format(steps, cur_seed), "wb") as pf:
                     pickle.dump(individual, pf, pickle.HIGHEST_PROTOCOL)
-                return (snake.score, steps)
+                return (snake.score, steps, timer_array, None)
             else:  # If coords free, then place food
                 food = placeFood(snake)
                 timer_array.append(timer)
@@ -427,8 +427,7 @@ def runGame(individual):
             timer += 1  # timesteps since last eaten
 
     final_distance_from_food = abs(snake.body[0][0] - food[0][0]) + abs(snake.body[0][1] - food[0][1])
-    totalScore += snake.score
-    return totalScore, steps, timer_array, final_distance_from_food
+    return snake.score, steps, timer_array, final_distance_from_food
 
 
 def runGameAvg(individual):
@@ -441,6 +440,7 @@ def runGameAvg(individual):
 
     for x in range(INDIVIDUAL_ITER):
         res = runGame(individual)
+        print(res)
         averages.append(res[index])
 
     ret = sum(averages)/len(averages)
@@ -450,7 +450,7 @@ def runGameAvg(individual):
     return ret,
 
 
-def main(rseed=300, use_last_best=False):
+def main(rseed=300, unpickling=False):
     global snake
     global pset
     global avg_scores
@@ -529,20 +529,35 @@ def main(rseed=300, use_last_best=False):
 
     population = toolbox.population(n=POPULATION_SIZE)
     hof = tools.HallOfFame(maxsize=HOF_SIZE)
-    pop, log = algorithms.eaSimple(population, toolbox, CROSS_PROB, MUT_PROB, ITERATIONS, stats=mstats, halloffame=hof, verbose=True)
-    
-    
-    # smoothing_factor = 20
-    # avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
-    # plt.plot(list(range(len(avg_scores))), avg_scores)
-    # plt.show()
 
-    epr = tools.selBest(hof, 1)[0]
-    iterations = 1000
-    runs = [runGame(epr)[0] for x in range(iterations)]
-    print("Best from pop, run 5 times: {}".format(runs))
-    print("Best from pop, avg: {}".format(sum(runs)/len(runs)))
-    return runs
+    if unpickling:
+        with open("best_individual_4667_644.pickle", "rb") as pickle_off:
+            global cur_seed
+            cur_seed = 644
+            random.seed(cur_seed)
+            individual = pickle.load(pickle_off)
+            score, _, _, _ = runGame(individual)
+            print(score)
+            score, _, _, _ = runGame(individual)
+            print(score)
+            displayStrategyRun(individual)
+            print(score)
+            score, _, _, _ = runGame(individual)
+            print(score)
+    else:       
+        pop, log = algorithms.eaSimple(population, toolbox, CROSS_PROB, MUT_PROB, ITERATIONS, stats=mstats, halloffame=hof, verbose=True)
+
+        # smoothing_factor = 20
+        # avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
+        # plt.plot(list(range(len(avg_scores))), avg_scores)
+        # plt.show()
+
+        epr = tools.selBest(hof, 1)[0]
+        iterations = 1000
+        runs = [runGame(epr)[0] for x in range(iterations)]
+        print("Best from pop, run 5 times: {}".format(runs))
+        print("Best from pop, avg: {}".format(sum(runs)/len(runs)))
+        return runs
 
 # Section: Graphing
     # nodes, edges, labels = gp.graph(epr)
@@ -595,14 +610,7 @@ def parse_results(results, seeds):
 
 if __name__ == "__main__":
 
-    # with open("best_individual_5477_644.pickle", "rb") as pickle_off:
-    #     random.seed(644)
-    #     individual = pickle.load(pickle_off)
-    #     compiled_ind = gp.compile(individual)
-    #     score, _ = runGame(compiled_ind)
-    #     print(score) 
-    #     displayStrategyRun(individual)
-
+    # main(rseed=644, unpickling=True)
 
     final_string = ""
     with open('./variables.py') as f:
