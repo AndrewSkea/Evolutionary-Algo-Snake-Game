@@ -413,10 +413,9 @@ def runGame(individual):
         if snake.body[0] in food:
             snake.score += 1
             if not (checkFood(snake)):
-                print("Maximum score achieved!")
-                print("Score: {} with steps: {} and seed: {}".format(snake.score, steps, cur_seed))
-                with open("best_individual_{}_{}.pickle".format(steps, cur_seed), "wb") as pf:
-                    pickle.dump(individual, pf, pickle.HIGHEST_PROTOCOL)
+                print("Max Score: {} with steps: {} and seed: {}".format(snake.score, steps, cur_seed))
+                # with open("best_individual_{}_{}.pickle".format(steps, cur_seed), "wb") as pf:
+                #     pickle.dump(individual, pf, pickle.HIGHEST_PROTOCOL)
                 return (snake.score, steps, timer_array, None)
             else:  # If coords free, then place food
                 food = placeFood(snake)
@@ -532,18 +531,12 @@ def main(rseed=300, unpickling=False):
 
     if unpickling:
         with open("best_individual_4667_644.pickle", "rb") as pickle_off:
-            global cur_seed
-            cur_seed = 644
-            random.seed(cur_seed)
             individual = pickle.load(pickle_off)
-            score, _, _, _ = runGame(individual)
-            print(score)
-            score, _, _, _ = runGame(individual)
-            print(score)
-            displayStrategyRun(individual)
-            print(score)
-            score, _, _, _ = runGame(individual)
-            print(score)
+            score1, _, _, _ = runGame(individual)
+            score2, _, _, _ = runGame(individual)
+            score3, _, _, _ = runGame(individual)
+            score4, _, _, _ = runGame(individual)
+            return [score1, score2, score3, score4]
     else:       
         pop, log = algorithms.eaSimple(population, toolbox, CROSS_PROB, MUT_PROB, ITERATIONS, stats=mstats, halloffame=hof, verbose=True)
 
@@ -609,10 +602,26 @@ def parse_results(results, seeds):
 
 
 if __name__ == "__main__":
-
-    # main(rseed=644, unpickling=True)
-
     final_string = ""
+
+    seeds = [random.randint(0, 333333333) for i in range(1000)]
+    results = []
+    for i in seeds:
+        global cur_seed
+        cur_seed = i
+        runs = main(rseed=i, unpickling=True)
+        results.append(max(runs))
+
+    print(results)
+    mean = statistics.mean(results)
+    median = statistics.median(results)
+    mode = statistics.mode(results)
+    stdev = statistics.stdev(results)
+
+    final_string += "For Seeds:\n{}\n\nResults:\n{}\n\nMean: {}\nMedian: {}\nMode: {}\nStandard Deviation: {}\n\n\n\n".format(
+        seeds, results, mean, median, mode, stdev
+    )
+    
     with open('./variables.py') as f:
         final_string += "Variables:\n{}".format(f.read())
 
@@ -623,22 +632,22 @@ if __name__ == "__main__":
     timestr = time.strftime("%Y%m%d-%H%M%S")
     filename = "results/" + str(timestr) + name + ".txt"
 
-    # seeds = [random.randint(0, sys.maxint) for i in range(SEED_SIZE)]
-    seeds = [644]
-    final_string += "\n\n\nSeeds:\n{}\n\n\n\n".format(seeds)
+    # # seeds = [random.randint(0, sys.maxint) for i in range(SEED_SIZE)]
+    # seeds = [644]
+    # final_string += "\n\n\nSeeds:\n{}\n\n\n\n".format(seeds)
 
     with open(filename, 'w') as f:
         f.write(final_string)
 
-    results = []
-    for i in seeds:
-        global cur_seed
-        cur_seed = i
-        try:
-            results.append(main(rseed=i, use_last_best=False))
-        except Exception:
-            print("Seed: {}".format(i))
-            print("Failed to finalise results on this seed")
+    # results = []
+    # for i in seeds:
+    #     global cur_seed
+    #     cur_seed = i
+    #     try:
+    #         results.append(main(rseed=i, use_last_best=False))
+    #     except Exception:
+    #         print("Seed: {}".format(i))
+    #         print("Failed to finalise results on this seed")
 
-    with open(filename, 'a') as f:
-        f.write(parse_results(results, seeds))
+    # with open(filename, 'a') as f:
+    #     f.write(parse_results(results, seeds))
