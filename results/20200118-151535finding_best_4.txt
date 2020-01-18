@@ -1,3 +1,4 @@
+Variables:
 # CONSTANTS
 S_RIGHT, S_LEFT, S_UP, S_DOWN = 0, 1, 2, 3
 XSIZE, YSIZE = 14, 14
@@ -18,3 +19,10 @@ HOF_SIZE = 2
 POPULATION_SIZE = 500
 FIT_FUNC = "steps"
 FIT_TYPE = "average"
+
+
+Seeds:
+[940, 720, 160, 940, 290, 851, 907, 952, 567]
+
+
+

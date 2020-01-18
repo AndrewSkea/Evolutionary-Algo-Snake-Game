@@ -7,6 +7,7 @@ import curses
 import random
 import operator
 import numpy
+import pickle
 import csv
 from functools import partial
 import multiprocessing
@@ -15,6 +16,7 @@ import statistics
 from itertools import chain
 from variables import *
 from matplotlib import pyplot as plt
+import keyboard
 
 from deap import algorithms
 from deap import base
@@ -274,29 +276,29 @@ class SnakePlayer(list):
 
     ##########
     # Sense direct food direction
-    def sense_food_on_x_axis_up(self):
-        return self.food[0][1] == self.body[0][1] and self.food[0][0] < self.body[0][0]
-
-    def if_food_on_x_axis_up(self, out1, out2):
-        return partial(if_then_else, self.sense_food_on_x_axis_up, out1, out2)
-
-    def sense_food_on_x_axis_down(self):
-        return self.food[0][1] == self.body[0][1] and self.food[0][0] > self.body[0][0]
-
-    def if_food_on_x_axis_down(self, out1, out2):
-        return partial(if_then_else, self.sense_food_on_x_axis_down, out1, out2)
-
-    def sense_food_on_y_axis_left(self):
+    def sense_food_directly_left(self):
         return self.food[0][0] == self.body[0][0] and self.food[0][1] < self.body[0][1]
 
-    def if_food_on_y_axis_left(self, out1, out2):
-        return partial(if_then_else, self.sense_food_on_y_axis_left, out1, out2)
+    def if_food_directly_left(self, out1, out2):
+        return partial(if_then_else, self.sense_food_directly_left, out1, out2)
 
-    def sense_food_on_y_axis_right(self):
+    def sense_food_directly_right(self):
         return self.food[0][0] == self.body[0][0] and self.food[0][1] > self.body[0][1]
 
-    def if_food_on_y_axis_right(self, out1, out2):
-        return partial(if_then_else, self.sense_food_on_y_axis_right, out1, out2)
+    def if_food_directly_right(self, out1, out2):
+        return partial(if_then_else, self.sense_food_directly_right, out1, out2)
+
+    def sense_food_directly_down(self):
+        return self.food[0][1] == self.body[0][1] and self.food[0][0] > self.body[0][0]
+
+    def if_food_directly_down(self, out1, out2):
+        return partial(if_then_else, self.sense_food_directly_down, out1, out2)
+
+    def sense_food_directly_up(self):
+        return self.food[0][1] == self.body[0][1] and self.food[0][0] < self.body[0][0]
+
+    def if_food_directly_up(self, out1, out2):
+        return partial(if_then_else, self.sense_food_directly_up, out1, out2)
     ##########
 
 
@@ -394,7 +396,7 @@ def displayStrategyRun(individual):
 
 def runGame(individual):
     global snake
-
+    global cur_seed
     totalScore = 0
     routine = gp.compile(individual, pset)
     snake._reset()
@@ -412,8 +414,10 @@ def runGame(individual):
             snake.score += 1
             if not (checkFood(snake)):
                 print("Maximum score achieved!")
-                # If not return; CONGRATS ON MAX SCORE!!!
-                return (snake.score,)
+                print("Score: {} with steps: {} and seed: {}".format(snake.score, steps, cur_seed))
+                with open("best_individual_{}_{}.pickle".format(steps, cur_seed), "wb") as pf:
+                    pickle.dump(individual, pf, pickle.HIGHEST_PROTOCOL)
+                return (snake.score, steps)
             else:  # If coords free, then place food
                 food = placeFood(snake)
                 timer_array.append(timer)
@@ -430,9 +434,9 @@ def runGame(individual):
 def runGameAvg(individual):
     global avg_scores
     index = 0
-    index = 1 if FIT_FUNC == "steps" else 0
-    index = 2 if FIT_FUNC == "timer" else 0
-    index = 3 if FIT_FUNC == "dist" else 0
+    index = 1 if FIT_FUNC == "steps" else index
+    index = 2 if FIT_FUNC == "timer" else index
+    index = 3 if FIT_FUNC == "dist" else index
     averages = []
 
     for x in range(INDIVIDUAL_ITER):
@@ -458,25 +462,28 @@ def main(rseed=300, use_last_best=False):
     pset.addPrimitive(prog2, 2)
     pset.addPrimitive(prog3, 3)
 
-    pset.addPrimitive(snake.if_object_is_to_right, 2)
-    pset.addPrimitive(snake.if_object_is_to_left, 2)
-    pset.addPrimitive(snake.if_object_is_up, 2)
-    pset.addPrimitive(snake.if_object_is_down, 2)
-
     pset.addPrimitive(snake.if_food_right, 2)
     pset.addPrimitive(snake.if_food_down, 2)
     pset.addPrimitive(snake.if_food_left, 2)
     pset.addPrimitive(snake.if_food_up, 2)
 
-    # pset.addPrimitive(snake.if_object_ahead, 2)
-
-    # pset.addPrimitive(snake.if_body_longer_than_2X, 2)
-    # pset.addPrimitive(snake.if_body_longer_than_2Y, 2)
+    # pset.addPrimitive(snake.if_food_directly_right, 2)
+    # pset.addPrimitive(snake.if_food_directly_down, 2)
+    # pset.addPrimitive(snake.if_food_directly_left, 2)
+    # pset.addPrimitive(snake.if_food_directly_up, 2)
 
     pset.addPrimitive(snake.if_object_right, 2)
     pset.addPrimitive(snake.if_object_left, 2)
     pset.addPrimitive(snake.if_object_up, 2)
     pset.addPrimitive(snake.if_object_down, 2)
+
+    # pset.addPrimitive(snake.if_object_is_to_right, 2)
+    # pset.addPrimitive(snake.if_object_is_to_left, 2)
+    # pset.addPrimitive(snake.if_object_is_up, 2)
+    # pset.addPrimitive(snake.if_object_is_down, 2)
+
+    # pset.addPrimitive(snake.if_body_longer_than_2X, 2)
+    # pset.addPrimitive(snake.if_body_longer_than_2Y, 2)
 
     # pset.addTerminal(snake.keepSameDirection)
     pset.addTerminal(snake.changeDirectionDown)
@@ -522,15 +529,13 @@ def main(rseed=300, use_last_best=False):
 
     population = toolbox.population(n=POPULATION_SIZE)
     hof = tools.HallOfFame(maxsize=HOF_SIZE)
-
-    # pop, log = algorithms.eaMuPlusLambda(population, toolbox, 25, 150, 0.5, 0.22, 120, stats=mstats, halloffame=hof, verbose=True)
-    # pop, log = algorithms.eaMuCommaLambda(population, toolbox, 25, 275, 0.5, 0.2, 120, stats=mstats, halloffame=hof, verbose=True)
     pop, log = algorithms.eaSimple(population, toolbox, CROSS_PROB, MUT_PROB, ITERATIONS, stats=mstats, halloffame=hof, verbose=True)
     
-    smoothing_factor = 20
-    avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
-    plt.plot(list(range(len(avg_scores))), avg_scores)
-    plt.show()
+    
+    # smoothing_factor = 20
+    # avg_scores = [sum(avg_scores[x:x+smoothing_factor])/smoothing_factor for x in range(0, len(avg_scores), smoothing_factor)]
+    # plt.plot(list(range(len(avg_scores))), avg_scores)
+    # plt.show()
 
     epr = tools.selBest(hof, 1)[0]
     iterations = 1000
@@ -585,30 +590,47 @@ def parse_results(results, seeds):
     final_string += "\nTop Level Results:\nMean:{}\nMedian:{}\nMode:{}\n\n\n\n".format(
         statistics.mean(results_flat), statistics.median(results_flat), statistics.mode(results_flat)
     )
-
-    with open('./variables.py') as f:
-        var_string = "\n\n\n\n\nVariables:\n{}".format(f.read())
-        final_string += var_string
-
     return final_string
 
 
 if __name__ == "__main__":
 
+    # with open("best_individual_5477_644.pickle", "rb") as pickle_off:
+    #     random.seed(644)
+    #     individual = pickle.load(pickle_off)
+    #     compiled_ind = gp.compile(individual)
+    #     score, _ = runGame(compiled_ind)
+    #     print(score) 
+    #     displayStrategyRun(individual)
+
+
+    final_string = ""
+    with open('./variables.py') as f:
+        final_string += "Variables:\n{}".format(f.read())
+
     name = ""
     if len(sys.argv) > 1:
         name = sys.argv[1] if sys.argv[1] != "" else ""
-             
-
+     
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    # seeds = [random.randint(0, 1000) for i in range(30)]
-    seeds = [153]
-    print(seeds)
-    results = []
-    for i in seeds:
-        results.append(main(rseed=i, use_last_best=False))
-
     filename = "results/" + str(timestr) + name + ".txt"
 
+    # seeds = [random.randint(0, sys.maxint) for i in range(SEED_SIZE)]
+    seeds = [644]
+    final_string += "\n\n\nSeeds:\n{}\n\n\n\n".format(seeds)
+
     with open(filename, 'w') as f:
+        f.write(final_string)
+
+    results = []
+    for i in seeds:
+        global cur_seed
+        cur_seed = i
+        try:
+            results.append(main(rseed=i, use_last_best=False))
+        except Exception:
+            print("Seed: {}".format(i))
+            print("Failed to finalise results on this seed")
+
+    with open(filename, 'a') as f:
         f.write(parse_results(results, seeds))
